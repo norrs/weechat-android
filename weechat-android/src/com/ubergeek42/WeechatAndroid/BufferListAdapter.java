@@ -15,10 +15,7 @@
  ******************************************************************************/
 package com.ubergeek42.WeechatAndroid;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 import java.util.Map.Entry;
 
 import android.app.Activity;
@@ -28,10 +25,10 @@ import android.database.DataSetObservable;
 import android.database.DataSetObserver;
 import android.graphics.Color;
 import android.preference.PreferenceManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.BaseAdapter;
 import android.widget.ExpandableListAdapter;
 import android.widget.TextView;
 
@@ -48,11 +45,13 @@ public class BufferListAdapter implements BufferManagerObserver, OnSharedPrefere
     private final DataSetObservable dataSetObservable = new DataSetObservable();
 	private SharedPreferences prefs;
 	private boolean enableBufferSorting;
-	
-	public BufferListAdapter(Activity parentActivity, RelayServiceBinder rsb) {
+    private static final String TAG = "WeeBufferListAdapter";
+
+    public BufferListAdapter(Activity parentActivity, RelayServiceBinder rsb) {
         this.parentActivity = parentActivity;
 		this.inflater = LayoutInflater.from(parentActivity);
-		
+
+        groupBuffers = new ArrayList<Entry<String, ArrayList<Buffer>>>();
 		prefs = PreferenceManager.getDefaultSharedPreferences(parentActivity.getBaseContext());
 	    prefs.registerOnSharedPreferenceChangeListener(this);
 	    enableBufferSorting = prefs.getBoolean("sort_buffers", true);
@@ -116,12 +115,30 @@ public class BufferListAdapter implements BufferManagerObserver, OnSharedPrefere
                 for (Buffer buffer : bufferManager.getBuffers()) {
                     // Check if buffer's fullname contains at least 1 dot
                     // (makes sure it's not main buffer (weechat) or iset, grep etc.. )
-                    String fullBufferName = buffer.getFullName();
+
+                    String fullBufferName = buffer.getFullName().trim();
                     if (fullBufferName.contains(".")) {
-                        String prefixGroup = fullBufferName.split("\\.")[0];
-                        addChild(prefixGroup, buffer);
-                    } else {
-                        addChild("others", buffer);
+                        String[] bufferGroups = fullBufferName.split("\\.");
+                        String prefixGroup;
+                        if (bufferGroups[0].equals("irc"))
+                            prefixGroup = bufferGroups[1];
+                        else
+                            prefixGroup = bufferGroups[0];
+
+                        boolean hasFound = false;
+                        for (Iterator<Entry<String, ArrayList<Buffer>>> iterator = groupBuffers.iterator(); iterator.hasNext(); ) {
+                            Entry<String, ArrayList<Buffer>> next = iterator.next();
+                            if (next.getKey().equals(prefixGroup)) {
+                                next.getValue().add(buffer);
+                                hasFound = true;
+                                break;
+                            }
+                        }
+                        if (!hasFound) {
+                            add(new AbstractMap.SimpleEntry<String, ArrayList<Buffer>>(prefixGroup, new ArrayList<Buffer>(Arrays.asList(new Buffer[]{buffer}))));
+                        }
+
+                        //Log.d(TAG, String.format("Adding %s to %s", fullBufferName, prefixGroup));
                     }
 
                 }

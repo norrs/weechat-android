@@ -30,12 +30,11 @@ public class BufferListFragment extends SherlockFragment implements RelayConnect
 
 	private boolean mBound = false;
 	private RelayServiceBinder rsb;
-	
-	private BufferListAdapter m_adapter;
+
 
     OnBufferSelectedListener mCallback;
     private ExpandableListView expandableListView;
-    private ArrayAdapter<String> bufferListAdapter;
+    private BufferListAdapter bufferListAdapter;
 
 
     // The container Activity must implement this interface so the frag can deliver messages
@@ -74,7 +73,6 @@ public class BufferListFragment extends SherlockFragment implements RelayConnect
 
         setRetainInstance(true);
 
-        bufferListAdapter = new ArrayAdapter<String>(getSherlockActivity(), R.layout.tips_list_item, message);
     }
 
     @Override
@@ -144,12 +142,12 @@ public class BufferListFragment extends SherlockFragment implements RelayConnect
 		Log.d("BufferListFragment","onConnect called");
 		if (rsb != null && rsb.isConnected()) {
 			// Create and update the buffer list when we connect to the service
-			m_adapter = new BufferListAdapter((WeechatActivity) getActivity(), rsb);
+			bufferListAdapter = new BufferListAdapter((WeechatActivity) getActivity(), rsb);
 			getActivity().runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-                    expandableListView.setAdapter(m_adapter);
-					m_adapter.onBuffersChanged();
+                    expandableListView.setAdapter(bufferListAdapter);
+					bufferListAdapter.onBuffersChanged();
 				}
 			});
 		}
@@ -161,7 +159,7 @@ public class BufferListFragment extends SherlockFragment implements RelayConnect
 		getActivity().runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-                expandableListView.setAdapter(new ArrayAdapter<String>(getActivity(), R.layout.tips_list_item, message));
+                expandableListView.setAdapter(new BufferListAdapter(getSherlockActivity(), rsb));
 			}
 		});
 	}
