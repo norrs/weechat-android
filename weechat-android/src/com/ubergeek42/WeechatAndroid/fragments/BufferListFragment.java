@@ -8,10 +8,14 @@ import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.ExpandableListView;
 import android.widget.ListView;
 
+import com.actionbarsherlock.app.SherlockFragment;
 import com.actionbarsherlock.app.SherlockListFragment;
 import com.ubergeek42.WeechatAndroid.BufferListAdapter;
 import com.ubergeek42.WeechatAndroid.R;
@@ -21,7 +25,7 @@ import com.ubergeek42.WeechatAndroid.service.RelayServiceBinder;
 import com.ubergeek42.weechat.Buffer;
 import com.ubergeek42.weechat.relay.RelayConnectionHandler;
 
-public class BufferListFragment extends SherlockListFragment implements RelayConnectionHandler {
+public class BufferListFragment extends SherlockFragment implements RelayConnectionHandler, ExpandableListView.OnChildClickListener {
 	private static final String[] message = {"Press Menu->Connect to get started"};
 
 	private boolean mBound = false;
@@ -30,14 +34,17 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
 	private BufferListAdapter m_adapter;
 
     OnBufferSelectedListener mCallback;
+    private ExpandableListView expandableListView;
+    private ArrayAdapter<String> bufferListAdapter;
+
 
     // The container Activity must implement this interface so the frag can deliver messages
     public interface OnBufferSelectedListener {
-        /** Called by BufferlistFragment when a list item is selected 
+        /** Called by BufferlistFragment when a list item is selected
          * @param b */
         public void onBufferSelected(int position, String fullBufferName);
     }
-    
+
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
@@ -51,33 +58,42 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
                     + " must implement OnBufferSelectedListener");
         }
     }
-    
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.bufferlist, container, false);
+        expandableListView = (ExpandableListView) view.findViewById(R.id.bufferlist_list);
+        expandableListView.setAdapter(bufferListAdapter);
+        return view;
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
+
         setRetainInstance(true);
-        
-		setListAdapter(new ArrayAdapter<String>(getActivity(), R.layout.tips_list_item, message));
+
+        bufferListAdapter = new ArrayAdapter<String>(getSherlockActivity(), R.layout.tips_list_item, message);
     }
-    
+
     @Override
     public void onStart() {
         super.onStart();
-        
+
         getActivity().setTitle(getString(R.string.app_version));
-        
+
         // When in two-pane layout, set the listview to highlight the selected list item
         // (We do this during onStart because at the point the listview is available.)
         if (getFragmentManager().findFragmentById(R.id.buffer_fragment) != null) {
-            getListView().setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+            expandableListView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
         }
-        
+
         // Bind to the Relay Service
         if (mBound == false)
         	getActivity().bindService(new Intent(getActivity(), RelayService.class), mConnection, Context.BIND_AUTO_CREATE);
     }
-    
+
     @Override
 	public void onStop() {
 		super.onStop();
@@ -86,14 +102,14 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
 			mBound = false;
 		}
 	}
-    
+
 	ServiceConnection mConnection = new ServiceConnection() {
 		@Override
 		public void onServiceConnected(ComponentName name, IBinder service) {
 			Log.d("BufferListFragment","Bufferlistfragment onserviceconnected");
 			rsb = (RelayServiceBinder) service;
 			rsb.addRelayConnectionHandler(BufferListFragment.this);
-			
+
 			mBound = true;
 			if (rsb.isConnected()) {
 				BufferListFragment.this.onConnect();
@@ -110,15 +126,17 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
 	};
 
     @Override
-    public void onListItemClick(ListView l, View v, int position, long id) {    	
-    	// Get the buffer they clicked
-		Buffer b = (Buffer) getListView().getItemAtPosition(position);
+    public boolean onChildClick(ExpandableListView expandableListView, View view, int groupPosition, int childPosition, long id) {
+        // Get the buffer they clicked
+        Buffer b = (Buffer) expandableListView.getItemAtPosition(childPosition);
 
-		// Tell our parent to load the buffer
-        mCallback.onBufferSelected(position, b.getFullName());
-        
+        // Tell our parent to load the buffer
+        mCallback.onBufferSelected(childPosition, b.getFullName());
+
         // Set the item as checked to be highlighted when in two-pane layout
-        getListView().setItemChecked(position, true);
+        expandableListView.setItemChecked(childPosition, true);
+
+        return true;
     }
 
 	@Override
@@ -130,7 +148,7 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
 			getActivity().runOnUiThread(new Runnable() {
 				@Override
 				public void run() {
-					setListAdapter(m_adapter);
+                    expandableListView.setAdapter(m_adapter);
 					m_adapter.onBuffersChanged();
 				}
 			});
@@ -143,13 +161,13 @@ public class BufferListFragment extends SherlockListFragment implements RelayCon
 		getActivity().runOnUiThread(new Runnable() {
 			@Override
 			public void run() {
-				setListAdapter(new ArrayAdapter<String>(getActivity(), R.layout.tips_list_item, message));
+                expandableListView.setAdapter(new ArrayAdapter<String>(getActivity(), R.layout.tips_list_item, message));
 			}
 		});
 	}
 
 	@Override
 	public void onError(String err) {
-		
+
 	}
 }
